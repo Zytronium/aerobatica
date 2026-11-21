@@ -8,6 +8,8 @@ fn on_mods(mods: &mut Vec<crate::game::native_hooks::NativeMod>) {
         keys: vec![
             ["roll".into(), "Roll (move the mouse left and right)".into(), "key.mouse.x".into()],
             ["pitch".into(), "Pitch (move the mouse up and down)".into(), "key.mouse.y".into()],
+            ["yaw left".into(), "Yaw left (A key)".into(), "key.left".into()],
+            ["yaw right".into(), "Yaw right (D key)".into(), "key.right".into()],
         ],
     });
 }

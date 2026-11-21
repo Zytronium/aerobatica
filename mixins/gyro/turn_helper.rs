@@ -1,7 +1,8 @@
 // OVERWRITE hook for Game::apply_mouse_look:
 // - While flying with Elytra:
-//   Mouse X turns you (yaw), so you fly where you look.
+//   Mouse X rolls the aircraft (banking).
 //   Mouse Y pitches you; through the bank, a pull-up carves a turn.
+//   A/D keys act as rudder for yaw.
 // - While on ground / walking:
 //   Standard vanilla mouse look (yaw & pitch).
 
@@ -33,8 +34,22 @@ fn on_mouse_look(game: &mut crate::game::Game<'_>) {
 
         if gliding {
             let cur_roll = horizon_client::gyro::get_roll();
-            let (pitch_delta, yaw_delta) =
+            let (pitch_delta, roll_delta, carve_yaw) =
                 horizon_client::gyro::calculate_flight_turn(xo, yo, cur_roll);
+
+            // A/D keys control yaw (rudder)
+            let elapsed = std::time::Duration::from_secs_f64(1.0 / 20.0);
+            let rudder_yaw = horizon_client::gyro::calculate_rudder_yaw(
+                game.key_left,
+                game.key_right,
+                elapsed,
+            );
+
+            // Set target roll from mouse X input; tick() smooths toward it
+            horizon_client::gyro::add_target_roll(roll_delta);
+
+            // Total yaw is the carve effect from banked pitch plus rudder input
+            let yaw_delta = carve_yaw + rudder_yaw;
 
             let mut new_pitch = game.pitch + pitch_delta;
             let mut new_yaw = game.yaw + yaw_delta;
