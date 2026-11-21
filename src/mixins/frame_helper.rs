@@ -15,9 +15,35 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
         Some(p) => p.fall_flying,
         None => false,
     };
-    let _ = crate::gyroflight::tick(gliding, elapsed, game.pitch);
+    // Disable flight physics while underwater so the player can swim normally.
+    let underwater = gliding
+        && game.camera_submersion(game.view.eye) == horizon_client::fog::FogType::Water;
+    if !gliding || underwater {
+        // A half-loop leaves the pitch past vertical, which draws the same as looking the
+        // other way round and upside down. The glide is over, so make the player really
+        // face where the camera looks (swimming and walking read yaw and a pitch within 90).
+        let (yaw, pitch, roll, changed) =
+            crate::gyroflight::upright_attitude(game.yaw, game.pitch, crate::gyroflight::get_roll());
+        if changed {
+            let turned = yaw - game.yaw;
+            game.yaw = yaw;
+            game.pitch = pitch;
+            crate::gyroflight::set_roll(roll);
+            crate::gyroflight::set_target_roll(0.0);
+            // The avatar's own copy follows, so it does not spin to catch up.
+            if let Some(m) = game.player_model.as_mut() {
+                m.head_pitch = pitch;
+                m.previous_head_pitch = pitch;
+                m.head_yaw += turned;
+                m.previous_head_yaw += turned;
+                m.body_yaw += turned;
+                m.previous_body_yaw += turned;
+            }
+        }
+    }
+    let _ = crate::gyroflight::tick(gliding && !underwater, elapsed, game.pitch);
 
-    if gliding {
+    if gliding && !underwater {
         let is_playing = match game.screen {
             crate::game::Screen::Playing => true,
             _ => false,
@@ -37,6 +63,16 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
                 );
                 crate::gyroflight::add_pending_turn(p, y);
             }
+        }
+
+        // Automatic yaw from roll angle: like a real airplane, banking naturally
+        // turns the heading. This is pure world yaw (about the vertical axis),
+        // not decomposed through the aircraft's roll axis — so it never pitches
+        // the nose toward or away from the ground.
+        let roll = crate::gyroflight::get_roll();
+        let roll_yaw = crate::gyroflight::calculate_roll_yaw(roll, game.pitch, elapsed);
+        if roll_yaw.abs() > 1e-6 {
+            crate::gyroflight::add_pending_turn(0.0, roll_yaw);
         }
 
         // Ease the queued turn into the camera, like the roll does.

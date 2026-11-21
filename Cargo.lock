@@ -3,5 +3,19 @@
 version = 4
 
 [[package]]
-name = "mod-gyro"
-version = "1.7.0"
+name = "horizon-mod-api"
+version = "0.1.0"
+dependencies = [
+ "horizon-mod-api-macros",
+]
+
+[[package]]
+name = "horizon-mod-api-macros"
+version = "0.1.0"
+
+[[package]]
+name = "mod-gyroflight"
+version = "1.0.0"
+dependencies = [
+ "horizon-mod-api",
+]

@@ -10,7 +10,7 @@ use std::time::Duration;
 
 /// The mod's row in Options > Mods. `version` here and in horizon-mod.toml are kept the same.
 pub const ID: &str = "gyroflight";
-pub const VERSION: &str = "1.0.0";
+pub const VERSION: &str = "1.0.1";
 pub const DESCRIPTION: &str =
     "Fly an elytra like an aircraft: mouse X rolls, mouse Y pitches, A/D keys steer (rudder). Smooth camera, invert Y option, and realistic flight physics.";
 
@@ -41,6 +41,12 @@ const SETTINGS_REFRESH: f32 = 0.25;
 /// How many degrees of yaw the rudder applies per second when A or D is held.
 /// Matches the mouse turn rate so keyboard and mouse feel balanced.
 const RUDDER_RATE: f32 = 90.0;
+
+/// How many degrees of automatic yaw per second at full bank (90°).
+/// Scales linearly with the roll angle so a shallow bank turns gently.
+/// This is pure world yaw (about the vertical axis), not decomposed through
+/// the aircraft's roll axis — unlike the rudder, it never pitches the nose.
+const ROLL_YAW_RATE: f32 = 30.0;
 
 /// How fast the world levels itself when you land, in degrees a second.
 const GROUND_LEVEL_RATE: f32 = 270.0;
@@ -78,6 +84,10 @@ pub static VIEW_PITCH: AtomicU32 = AtomicU32::new(0);
 
 /// Entity id of the camera's mob: only that avatar locks to the roll.
 pub static LOCK_MOB: AtomicU32 = AtomicU32::new(u32::MAX);
+
+/// Where the avatar's own vertices begin in the frame's entity list, noted when
+/// its drawing starts so the roll can be applied to just those after it is built.
+static AVATAR_START: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 /// Pitch (degrees) the mouse and rudder have asked for that is not applied yet.
 static PENDING_PITCH: AtomicU32 = AtomicU32::new(0);
@@ -374,6 +384,51 @@ pub fn calculate_flight_turn(
     (pitch_delta, roll_input, carve_yaw)
 }
 
+/// Calculate automatic yaw from the current roll angle, like a real airplane.
+/// Returns degrees of pure world yaw for this frame: negative for left bank,
+/// positive for right bank. The rate scales linearly with the sine of the roll
+/// angle so level flight produces no yaw and full bank produces the maximum.
+///
+/// Unlike rudder yaw (which rotates about the aircraft's vertical axis and can
+/// pitch the nose when banked), this is always pure world yaw — the heading
+/// changes relative to zero roll, never tilting toward or away from the ground.
+///
+/// `pitch` is the camera pitch in degrees. After a half-loop carries it past
+/// straight up or down (|pitch| in 90..270 degrees) the view is drawn upside
+/// down relative to the roll, so the bank the pilot sees is roll + 180 and the
+/// turn must mirror, exactly as in `calculate_flight_turn` and `decompose_rudder`.
+pub fn calculate_roll_yaw(roll: f32, pitch: f32, elapsed: Duration) -> f32 {
+    let dt = elapsed.as_secs_f32().min(0.5);
+    let roll_rad = roll.to_radians();
+    let side = if pitch.to_radians().cos() < 0.0 { -1.0 } else { 1.0 };
+    ROLL_YAW_RATE * roll_rad.sin() * side * dt
+}
+
+/// Note where the avatar's vertices begin (the list's length before it is drawn).
+pub fn set_avatar_start(index: usize) {
+    AVATAR_START.store(index, Ordering::Relaxed);
+}
+
+/// Where the avatar's vertices begin in the list noted by `set_avatar_start`.
+pub fn get_avatar_start() -> usize {
+    AVATAR_START.load(Ordering::Relaxed)
+}
+
+/// The roll, in degrees, to give the flying avatar's body about its long axis
+/// (positive banks it right), so it banks with the camera as it pitches with it.
+///
+/// `view_pitch` is the camera's pitch and `avatar_pitch` the pitch the avatar is
+/// drawn with, both in degrees. Normally they agree and the avatar takes the
+/// camera's roll. If one of them is past the vertical of a loop and the other is
+/// not (the game wrapped or mirrored the avatar's pitch), the two bodies are
+/// 180 degrees apart about the flight path, so the roll gains a half turn.
+/// `blend` is 0..1, how far the glide pose has eased in.
+pub fn avatar_roll(roll: f32, view_pitch: f32, avatar_pitch: f32, blend: f32) -> f32 {
+    let mirrored = view_pitch.to_radians().cos() * avatar_pitch.to_radians().cos() < 0.0;
+    let roll = if mirrored { roll + 180.0 } else { roll };
+    roll * blend
+}
+
 /// Calculate yaw delta from rudder keys (A/D).
 /// Returns degrees of yaw per frame: negative for left (A), positive for right (D).
 /// The rate matches the mouse turn sensitivity so keyboard and mouse feel balanced.
@@ -400,6 +455,26 @@ pub fn decompose_rudder(rudder_yaw: f32, current_roll: f32, current_pitch: f32) 
     let phi = current_roll.to_radians();
     let side = if current_pitch.to_radians().cos() < 0.0 { -1.0 } else { 1.0 };
     (rudder_yaw * phi.sin(), rudder_yaw * phi.cos() * side)
+}
+
+/// The same view as `(yaw, pitch, roll)`, with the pitch brought back within straight
+/// down and straight up. Returns `(yaw, pitch, roll, changed)`.
+///
+/// A half-loop carries the pitch past vertical. The picture is the same as looking
+/// the other way round and upside down: `(yaw, pitch, roll)` draws exactly as
+/// `(yaw + 180, 180 - pitch, roll + 180)`. While gliding the raw values are fine, but
+/// everything else (swimming, walking, the server) reads the yaw and a pitch within
+/// +-90 degrees, so past vertical it faces the opposite way to the camera and the
+/// avatar. Called when the glide ends, so the player really faces where the camera
+/// looks and nothing visibly jumps.
+pub fn upright_attitude(yaw: f32, pitch: f32, roll: f32) -> (f32, f32, f32, bool) {
+    let wrapped = (pitch + 180.0).rem_euclid(360.0) - 180.0;
+    if wrapped.to_radians().cos() >= -1e-5 {
+        return (yaw, wrapped, roll, (wrapped - pitch).abs() > 1e-4);
+    }
+    let flipped = if wrapped > 0.0 { 180.0 - wrapped } else { -180.0 - wrapped };
+    let turned_roll = (roll + 180.0 + 180.0).rem_euclid(360.0) - 180.0;
+    (yaw + 180.0, flipped, turned_roll, true)
 }
 
 /// Advance the flight state per frame: the roll smooths toward its target,
@@ -593,6 +668,82 @@ mod tests {
     }
 
     #[test]
+    fn test_roll_yaw_mirrors_past_vertical() {
+        let dt = Duration::from_secs_f32(1.0 / 60.0);
+        // Upright, banked right: turns right.
+        assert!(calculate_roll_yaw(45.0, 0.0, dt) > 0.0);
+        // After a half roll and half loop the pitch is past vertical and the
+        // picture is upside down again: the same bank value turns the other way.
+        assert!(calculate_roll_yaw(45.0, 170.0, dt) < 0.0);
+        assert!(calculate_roll_yaw(45.0, -170.0, dt) < 0.0);
+        // Back through a full loop (pitch 360) it is the original way again.
+        assert!(calculate_roll_yaw(45.0, 360.0, dt) > 0.0);
+    }
+
+    #[test]
+    fn test_avatar_takes_the_camera_roll() {
+        assert_eq!(avatar_roll(30.0, 10.0, 10.0, 1.0), 30.0);
+        assert_eq!(avatar_roll(-30.0, 120.0, 120.0, 1.0), -30.0, "both past vertical agree");
+        assert_eq!(avatar_roll(30.0, 10.0, 10.0, 0.5), 15.0, "eases in with the pose");
+    }
+
+    #[test]
+    fn test_avatar_roll_gains_a_half_turn_when_pitch_is_mirrored() {
+        // Camera past vertical (half-loop), avatar drawn with the wrapped pitch.
+        assert_eq!(avatar_roll(30.0, 120.0, 60.0, 1.0), 210.0);
+        assert_eq!(avatar_roll(30.0, 60.0, 120.0, 1.0), 210.0);
+        assert_eq!(avatar_roll(30.0, -120.0, -60.0, 1.0), 210.0);
+    }
+
+    #[test]
+    fn test_upright_attitude_after_half_roll_and_half_loop() {
+        // Inverted, then looped to level: the camera looks back and is upright.
+        let (yaw, pitch, roll, changed) = upright_attitude(30.0, 180.0, 180.0);
+        assert!(changed);
+        assert!((yaw - 210.0).abs() < 1e-3 && pitch.abs() < 1e-3 && roll.abs() < 1e-3,
+                "got {} {} {}", yaw, pitch, roll);
+        // Part way over the top.
+        let (yaw, pitch, roll, _) = upright_attitude(0.0, 170.0, 30.0);
+        assert!((yaw - 180.0).abs() < 1e-3 && (pitch - 10.0).abs() < 1e-3, "got {} {}", yaw, pitch);
+        assert!((roll + 150.0).abs() < 1e-3, "roll gains a half turn, got {}", roll);
+        let (_, pitch, _, _) = upright_attitude(0.0, -170.0, 0.0);
+        assert!((pitch + 10.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_upright_attitude_leaves_a_normal_view_alone() {
+        assert_eq!(upright_attitude(30.0, 45.0, 10.0), (30.0, 45.0, 10.0, false));
+        assert_eq!(upright_attitude(30.0, -90.0, 0.0), (30.0, -90.0, 0.0, false));
+        // A pitch wrapped a full turn is the same view, brought back in range.
+        let (yaw, pitch, _, changed) = upright_attitude(30.0, 390.0, 0.0);
+        assert!(changed && yaw == 30.0 && (pitch - 30.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn test_upright_attitude_is_the_same_view() {
+        // The view is the matrix Rz(roll) * Rx(pitch) * Ry(yaw), as the camera draws it.
+        fn view(yaw: f32, pitch: f32, roll: f32) -> [[f32; 3]; 3] {
+            let (y, p, r) = (yaw.to_radians(), pitch.to_radians(), roll.to_radians());
+            let ry = [[y.cos(), 0.0, y.sin()], [0.0, 1.0, 0.0], [-y.sin(), 0.0, y.cos()]];
+            let rx = [[1.0, 0.0, 0.0], [0.0, p.cos(), -p.sin()], [0.0, p.sin(), p.cos()]];
+            let rz = [[r.cos(), -r.sin(), 0.0], [r.sin(), r.cos(), 0.0], [0.0, 0.0, 1.0]];
+            let mul = |a: [[f32; 3]; 3], b: [[f32; 3]; 3]| {
+                let mut o = [[0.0; 3]; 3];
+                for i in 0..3 { for j in 0..3 { for k in 0..3 { o[i][j] += a[i][k] * b[k][j]; } } }
+                o
+            };
+            mul(rz, mul(rx, ry))
+        }
+        for &(yaw, pitch, roll) in &[(30.0, 180.0, 180.0), (-80.0, 130.0, 25.0), (10.0, -140.0, -60.0)] {
+            let (y2, p2, r2, _) = upright_attitude(yaw, pitch, roll);
+            let (a, b) = (view(yaw, pitch, roll), view(y2, p2, r2));
+            for i in 0..3 { for j in 0..3 {
+                assert!((a[i][j] - b[i][j]).abs() < 1e-4, "({yaw},{pitch},{roll}) -> ({y2},{p2},{r2})");
+            } }
+        }
+    }
+
+    #[test]
     fn test_rudder_is_pure_yaw_when_level() {
         let (p, y) = decompose_rudder(10.0, 0.0, 0.0);
         assert!(p.abs() < 1e-4 && (y - 10.0).abs() < 1e-4, "got {} {}", p, y);
@@ -734,6 +885,77 @@ mod tests {
         let _guard = flight_state();
         let yaw = calculate_rudder_yaw(false, false, Duration::from_secs_f32(0.5));
         assert!(yaw.abs() < 1e-4, "no rudder input should give zero yaw");
+    }
+
+    #[test]
+    fn test_roll_yaw_is_zero_when_level() {
+        let _guard = flight_state();
+        // No roll means no automatic yaw.
+        let yaw = calculate_roll_yaw(0.0, 0.0, Duration::from_secs_f32(1.0 / 60.0));
+        assert!(yaw.abs() < 1e-6, "level flight should produce no roll yaw, got {}", yaw);
+    }
+
+    #[test]
+    fn test_roll_yaw_is_positive_at_right_bank() {
+        let _guard = flight_state();
+        // Banked right (positive roll) should yaw right (positive yaw).
+        let yaw = calculate_roll_yaw(45.0, 0.0, Duration::from_secs_f32(1.0 / 60.0));
+        assert!(yaw > 0.0, "right bank should yaw right, got {}", yaw);
+    }
+
+    #[test]
+    fn test_roll_yaw_is_negative_at_left_bank() {
+        let _guard = flight_state();
+        // Banked left (negative roll) should yaw left (negative yaw).
+        let yaw = calculate_roll_yaw(-45.0, 0.0, Duration::from_secs_f32(1.0 / 60.0));
+        assert!(yaw < 0.0, "left bank should yaw left, got {}", yaw);
+    }
+
+    #[test]
+    fn test_roll_yaw_max_at_90_bank() {
+        let _guard = flight_state();
+        // At 90° bank, sin(90°) = 1, so yaw rate is maximum.
+        // dt is clamped to 0.5s in the function, so use 0.5s for the expected value.
+        let yaw = calculate_roll_yaw(90.0, 0.0, Duration::from_secs_f32(0.5));
+        let expected = ROLL_YAW_RATE * 90.0_f32.to_radians().sin() * 0.5;
+        assert!(
+            (yaw - expected).abs() < 1e-4,
+            "90° bank should give max roll yaw rate, got {} expected {}",
+            yaw, expected
+        );
+    }
+
+    #[test]
+    fn test_roll_yaw_is_pure_yaw() {
+        let _guard = flight_state();
+        // Unlike rudder yaw, roll-induced yaw should never produce a pitch component.
+        // It is always applied as pure world yaw (pitch=0, yaw=roll_yaw).
+        // This test verifies the function only returns a yaw value, not a (pitch, yaw) pair.
+        let yaw = calculate_roll_yaw(60.0, 0.0, Duration::from_secs_f32(1.0 / 60.0));
+        // The yaw should be non-zero for a non-trivial bank.
+        assert!(yaw.abs() > 1e-6, "60° bank should produce yaw, got {}", yaw);
+        // Compare with rudder at same bank: rudder would produce pitch + yaw,
+        // but roll_yaw is just a single f32 (pure yaw).
+        let (rudder_pitch, rudder_yaw) = decompose_rudder(30.0, 60.0, 0.0);
+        assert!(rudder_pitch.abs() > 1e-3, "rudder at 60° bank should produce pitch");
+        assert!(
+            (rudder_yaw - 30.0 * 60.0_f32.to_radians().cos()).abs() < 1e-3,
+            "rudder yaw is decomposed through roll axis"
+        );
+        // Roll yaw is independent of pitch decomposition — it's always pure world yaw.
+    }
+
+    #[test]
+    fn test_roll_yaw_scales_with_dt() {
+        let _guard = flight_state();
+        // Yaw should scale linearly with frame time.
+        let yaw_1 = calculate_roll_yaw(45.0, 0.0, Duration::from_secs_f32(1.0 / 60.0));
+        let yaw_2 = calculate_roll_yaw(45.0, 0.0, Duration::from_secs_f32(1.0 / 30.0));
+        assert!(
+            (yaw_2 - yaw_1 * 2.0).abs() < 1e-5,
+            "doubling dt should double yaw, got {} vs {}",
+            yaw_2, yaw_1 * 2.0
+        );
     }
 
     #[test]

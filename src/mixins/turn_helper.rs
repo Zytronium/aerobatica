@@ -31,8 +31,11 @@ fn on_mouse_look(game: &mut crate::game::Game<'_>) {
             Some(p) => p.fall_flying,
             None => false,
         };
+        // Disable flight controls while underwater so the player can swim normally.
+        let underwater = gliding
+            && game.camera_submersion(game.view.eye) == horizon_client::fog::FogType::Water;
 
-        if gliding {
+        if gliding && !underwater {
             let cur_roll = crate::gyroflight::get_roll();
 
             // Invert pitch is read in the frame hook (see frame_helper.rs) into

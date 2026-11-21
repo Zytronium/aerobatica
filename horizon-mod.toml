@@ -1,50 +1,12 @@
 id = "gyroflight"
 name = "Gyroflight"
-version = "1.0.0"
+version = "1.0.1"
 description = "Fly an elytra like an aircraft: mouse X rolls, mouse Y pitches, A/D keys steer (rudder). Smooth camera, invert Y option, and realistic flight physics."
 authors = ["Horizon"]
 license = "MIT"
 api = "0.2"
 side = "client"
-capabilities = ["registries"]
 
 [native]
 game = "26.3"
-horizon = "0a875da91dbb0fdcb7ba8c42c11341aa229af51a"
-mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
-
-[[native.module]]
-id = "gyroflight"
-file = "crates/horizon-client/src/client_lib.rs"
-name = "gyroflight"
-source = "src/gyroflight.rs"
-visibility = "pub"
-[[native.mixin]]
-id = "frame-handler"
-target = "horizon_client::game::native_hooks::render_frame_pre::Game::native_render_frame_pre"
-kind = "HEAD"
-helper = "src/mixins/frame_helper.rs"
-bindings = [
-    { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-    { name = "elapsed", ty = "std::time::Duration", value = "elapsed" },
-]
-
-[[native.mixin]]
-id = "spin-roll"
-target = "horizon_client::game::fov::Game<'_>::spinning_matrix"
-kind = "RETURN"
-helper = "src/mixins/spin_helper.rs"
-bindings = [
-    { name = "game", ty = "&crate::game::Game<'_>", value = "self" },
-    { name = "value", ty = "glam::Mat4", value = "$value" },
-]
-
-[[native.mixin]]
-id = "turn-handler"
-target = "horizon_client::game::pointer_capture::Game<'_>::apply_mouse_look"
-kind = "OVERWRITE"
-helper = "src/mixins/turn_helper.rs"
-bindings = [
-    { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
-]
-
+horizon = "f037744a79f9982c47876f49c5a3067279f88706"
