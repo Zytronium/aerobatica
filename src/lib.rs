@@ -12,6 +12,9 @@
 
 pub mod aerobatica;
 
+#[derive(Default)]
+struct Hooks;
+
 #[mod_api::horizon_mod]
 impl mod_api::Hooks for Hooks {
     fn register(&self, r: &mut dyn mod_api::Registrar, _: &mod_api::RegistrationContext) {
@@ -33,6 +36,3 @@ impl mod_api::Hooks for Hooks {
         ));
     }
 }
-
-#[derive(Default)]
-struct Hooks;

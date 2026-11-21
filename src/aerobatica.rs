@@ -109,6 +109,22 @@ static INVERT_Y: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::
 /// Whether the last tick was gliding, so we can detect the takeoff transition.
 static WAS_GLIDING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
+/// Whether the mod is currently enabled (toggle keybind).
+static IS_ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// Whether the toggle key was pressed last frame (for edge detection in the mixin).
+static TOGGLE_KEY_LAST: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Check whether the mod is enabled.
+pub fn get_enabled() -> bool {
+    IS_ENABLED.load(Ordering::Relaxed)
+}
+
+/// Set whether the mod is enabled.
+pub fn set_enabled(enabled: bool) {
+    IS_ENABLED.store(enabled, Ordering::Relaxed);
+}
+
 /// Get the current camera bank in degrees.
 pub fn get_roll() -> f32 {
     f32::from_bits(ROLL_DEGREES.load(Ordering::Relaxed))
@@ -241,6 +257,27 @@ pub fn apply_raw_settings(invert_y: Option<&str>, smoothness: Option<&str>) {
         .filter(|v| v.is_finite() && (0.0..=MAX_SMOOTHNESS).contains(v))
         .unwrap_or(DEFAULT_SMOOTHNESS);
     set_smoothness(smooth);
+}
+
+/// Whether the mod should process flight input this frame.
+pub fn is_enabled() -> bool {
+    get_enabled()
+}
+
+/// Check the toggle key (I key) with rising-edge detection.
+/// Call once per frame from the mixin. `is_pressed` is the raw key state.
+/// Returns true if the key was just pressed this frame.
+pub fn check_toggle_key(is_pressed: bool) -> bool {
+    let last = TOGGLE_KEY_LAST.load(Ordering::Relaxed);
+    TOGGLE_KEY_LAST.store(is_pressed, Ordering::Relaxed);
+    is_pressed && !last
+}
+
+/// Toggle the mod on/off. Returns the new state.
+pub fn toggle_enabled() -> bool {
+    let current = IS_ENABLED.load(Ordering::Relaxed);
+    IS_ENABLED.store(!current, Ordering::Relaxed);
+    !current
 }
 
 /// Queue a pitch and yaw change (degrees). It is applied gradually by

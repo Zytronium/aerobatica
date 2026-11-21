@@ -11,6 +11,13 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
         crate::aerobatica::apply_raw_settings(invert.as_deref(), smooth.as_deref());
     }
 
+    // Toggle keybind: detect rising edge of the I key to enable/disable the mod.
+    // Rising-edge detection ensures one toggle per press, not every frame while held.
+    let key_toggle = game.keys.raw(&winit::keyboard::KeyCode::KeyI);
+    if crate::aerobatica::check_toggle_key(key_toggle) {
+        crate::aerobatica::toggle_enabled();
+    }
+
     let gliding = match &game.player {
         Some(p) => p.fall_flying,
         None => false,
@@ -41,9 +48,10 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
             }
         }
     }
-    let _ = crate::aerobatica::tick(gliding && !underwater, elapsed, game.pitch);
+    let enabled = crate::aerobatica::is_enabled();
+    let _ = crate::aerobatica::tick(enabled && gliding && !underwater, elapsed, game.pitch);
 
-    if gliding && !underwater {
+    if enabled && gliding && !underwater {
         let is_playing = match game.screen {
             crate::game::Screen::Playing => true,
             _ => false,

@@ -20,7 +20,7 @@ fn on_after(
     let Some(m) = game.player_model.as_ref() else {
         return;
     };
-    if !m.extra.fall_flying || m.extra.auto_spin_attack {
+    if !m.extra.fall_flying || m.extra.auto_spin_attack || !crate::aerobatica::is_enabled() {
         return;
     }
     let roll = crate::aerobatica::get_roll();

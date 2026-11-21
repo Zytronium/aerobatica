@@ -8,6 +8,9 @@
 fn on_return(game: &crate::game::Game<'_>, value: glam::Mat4) -> glam::Mat4 {
     crate::aerobatica::set_view(game.view.y_rot, game.view.x_rot);
     crate::aerobatica::set_lock_mob(game.player_model.as_ref().map_or(u32::MAX, |m| m.id));
+    if !crate::aerobatica::is_enabled() {
+        return value;
+    }
     let roll = crate::aerobatica::get_roll();
     if roll.abs() > 0.001 {
         value * glam::Mat4::from_rotation_z(roll.to_radians())

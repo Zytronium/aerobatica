@@ -35,7 +35,7 @@ fn on_mouse_look(game: &mut crate::game::Game<'_>) {
         let underwater = gliding
             && game.camera_submersion(game.view.eye) == horizon_client::fog::FogType::Water;
 
-        if gliding && !underwater {
+        if gliding && !underwater && crate::aerobatica::is_enabled() {
             let cur_roll = crate::aerobatica::get_roll();
 
             // Invert pitch is read in the frame hook (see frame_helper.rs) into
