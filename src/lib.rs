@@ -21,15 +21,15 @@ impl mod_api::Hooks for Hooks {
             "Invert pitch",
             false,
         ));
-        // Camera smoothness during flight: 0 is instant, 1 is very smooth.
+        // Camera smoothness during flight: 0 is instant, 10 is very smooth.
         // Affects roll, pitch and yaw easing; pitch is always eased a bit more.
         let _ = r.register_setting(mod_api::SettingSpec::range(
             "camera_smoothness",
             "Camera smoothness",
             0.0,
-            1.0,
-            0.05,
-            0.5,
+            10.0,
+            0.25,
+            5.0,
         ));
     }
 }

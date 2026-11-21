@@ -122,6 +122,23 @@ horizon-launcher native-build . --instance "My Instance" --trust-native-code
 
 On Windows, set `core.autocrlf=false` so source file hashes match the Linux commit pins.
 
+## Known Issues
+
+**Possible pitch instability at extreme angles.** Very rarely, when the camera is pitched to an extreme
+angle (nearly straight up or down), the pitch-up or pitch-down response may briefly feel unresponsive
+or stuck. This may be caused by the pitch value reaching the boundary of its internal representation,
+where the flight model's loop-detection logic interacts with the angle wrap-around. The normalization
+fix prevents the severe drift that caused major bugs, but this edge case at the boundary remains a
+possible issue that has not been fully eliminated. If it occurs, moving the mouse to bring the pitch
+back to a moderate angle should resolve it quickly.
+
+**Possible unintended extreme flight speed increase.** A fix has been 
+implemented, but since the bug was so rare, there has been insufficient 
+testing to completely rule out the bug post-fix. However, as of the writing
+of this, this bug has not been observed since the last attempted fix. If you
+experience this bug while on a strict server, it may trigger anticheat, so
+beware.
+
 ## License
 
 MIT license, matching Horizon's own license for native mods. This project does not contain any of

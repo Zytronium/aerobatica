@@ -10,7 +10,7 @@ use std::time::Duration;
 
 /// The mod's row in Options > Mods. `version` here and in horizon-mod.toml are kept the same.
 pub const ID: &str = "gyroflight";
-pub const VERSION: &str = "1.0.1";
+pub const VERSION: &str = "1.0.2";
 pub const DESCRIPTION: &str =
     "Fly an elytra like an aircraft: mouse X rolls, mouse Y pitches, A/D keys steer (rudder). Smooth camera, invert Y option, and realistic flight physics.";
 
@@ -26,9 +26,10 @@ const LEVEL_RATE: f32 = 10.0;
 /// it stays the same at any frame rate.
 const BASE_SMOOTHING_TAU: f32 = 0.1026;
 
-/// Camera smoothness setting (0 to 1) that gives `BASE_SMOOTHING_TAU`. The tau
-/// scales linearly with the setting; 0 is instant, 1 is twice the default lag.
-const DEFAULT_SMOOTHNESS: f32 = 0.5;
+/// Camera smoothness setting (0 to 10) that gives `BASE_SMOOTHING_TAU`. The tau
+/// scales linearly with the setting; 0 is instant, 5 is the default, 10 is very smooth.
+const DEFAULT_SMOOTHNESS: f32 = 5.0;
+const MAX_SMOOTHNESS: f32 = 10.0;
 
 /// Pitch eases this many times slower than roll and yaw, so a pull-up or push-over
 /// builds up gently instead of snapping.
@@ -95,8 +96,8 @@ static PENDING_PITCH: AtomicU32 = AtomicU32::new(0);
 /// Yaw (degrees) the mouse and rudder have asked for that is not applied yet.
 static PENDING_YAW: AtomicU32 = AtomicU32::new(0);
 
-/// Camera smoothness setting, 0 (instant) to 1 (very smooth), bit-cast f32.
-static SMOOTHNESS: AtomicU32 = AtomicU32::new(0x3F00_0000); // 0.5
+/// Camera smoothness setting, 0 (instant) to 10 (very smooth), bit-cast f32.
+static SMOOTHNESS: AtomicU32 = AtomicU32::new(0x40A0_0000); // 5.0
 
 /// Seconds since the settings were last read from disk, bit-cast f32. Starts
 /// past the refresh period so the first frame reads them.
@@ -188,14 +189,14 @@ pub fn set_invert_y(invert: bool) {
     INVERT_Y.store(invert, Ordering::Relaxed);
 }
 
-/// The camera smoothness setting, 0 (instant) to 1 (very smooth).
+/// The camera smoothness setting, 0 (instant) to 10 (very smooth).
 pub fn get_smoothness() -> f32 {
     f32::from_bits(SMOOTHNESS.load(Ordering::Relaxed))
 }
 
-/// Set the camera smoothness, clamped to 0..=1.
+/// Set the camera smoothness, clamped to 0..=10.
 pub fn set_smoothness(value: f32) {
-    let value = if value.is_finite() { value.clamp(0.0, 1.0) } else { DEFAULT_SMOOTHNESS };
+    let value = if value.is_finite() { value.clamp(0.0, MAX_SMOOTHNESS) } else { DEFAULT_SMOOTHNESS };
     SMOOTHNESS.store(value.to_bits(), Ordering::Relaxed);
 }
 
@@ -210,8 +211,9 @@ fn ease_fraction(dt: f32, tau: f32) -> f32 {
 }
 
 /// Time constant of the roll and yaw easing at the current smoothness.
+/// Multiplied by 3 so the smoothness setting has a more noticeable effect.
 fn smoothing_tau() -> f32 {
-    BASE_SMOOTHING_TAU * (get_smoothness() / DEFAULT_SMOOTHNESS)
+    BASE_SMOOTHING_TAU * (get_smoothness() / DEFAULT_SMOOTHNESS) * 3.0
 }
 
 /// Whether it is time to re-read the settings files. Call once a frame.
@@ -236,7 +238,7 @@ pub fn apply_raw_settings(invert_y: Option<&str>, smoothness: Option<&str>) {
     set_invert_y(invert_y.map(str::trim) == Some("true"));
     let smooth = smoothness
         .and_then(|text| text.trim().parse::<f32>().ok())
-        .filter(|v| v.is_finite() && (0.0..=1.0).contains(v))
+        .filter(|v| v.is_finite() && (0.0..=MAX_SMOOTHNESS).contains(v))
         .unwrap_or(DEFAULT_SMOOTHNESS);
     set_smoothness(smooth);
 }
@@ -520,7 +522,7 @@ pub fn tick(gliding: bool, elapsed: Duration, pitch: f32) -> f32 {
         // Normalize roll to [-180, 180] so we take the shortest path to 0.
         // Without this, a roll of 720° would spin multiple full circles instead
         // of just unwinding to the nearest 0.
-        roll = ((roll + 180.0).rem_euclid(360.0) - 180.0);
+        roll = (roll + 180.0).rem_euclid(360.0) - 180.0;
         let step = GROUND_LEVEL_RATE * dt;
         if roll.abs() <= step {
             roll = 0.0;
@@ -775,7 +777,7 @@ mod tests {
     }
 
     #[test]
-    fn test_smoothness_zero_is_instant_and_one_is_slower() {
+    fn test_smoothness_zero_is_instant_and_max_is_slower() {
         let _guard = flight_state();
         let dt = Duration::from_secs_f32(1.0 / 60.0);
         set_smoothness(0.0);
@@ -783,11 +785,11 @@ mod tests {
         add_pending_turn(10.0, 10.0);
         let (p, y) = take_smoothed_turn(dt);
         assert!((p - 10.0).abs() < 1e-3 && (y - 10.0).abs() < 1e-3, "got {} {}", p, y);
-        set_smoothness(0.5);
+        set_smoothness(2.5);
         clear_pending_turn();
         add_pending_turn(10.0, 0.0);
         let (mid, _) = take_smoothed_turn(dt);
-        set_smoothness(1.0);
+        set_smoothness(10.0);
         clear_pending_turn();
         add_pending_turn(10.0, 0.0);
         let (high, _) = take_smoothed_turn(dt);
@@ -799,10 +801,10 @@ mod tests {
     #[test]
     fn test_raw_settings_parse() {
         let _guard = flight_state();
-        apply_raw_settings(Some("true\n"), Some("0.8"));
+        apply_raw_settings(Some("true\n"), Some("3.0"));
         assert!(get_invert_y());
-        assert!((get_smoothness() - 0.8).abs() < 1e-6);
-        apply_raw_settings(Some("false"), Some("7"));
+        assert!((get_smoothness() - 3.0).abs() < 1e-6);
+        apply_raw_settings(Some("false"), Some("15"));
         assert!(!get_invert_y());
         assert_eq!(get_smoothness(), DEFAULT_SMOOTHNESS, "out of range reads as the default");
         apply_raw_settings(None, None);

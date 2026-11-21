@@ -6,7 +6,7 @@
 python3 -c "
 import zipfile, os, glob
 
-hmod_path = 'target/horizon-mod/gyroflight-1.0.1.hmod'
+hmod_path = 'target/horizon-mod/gyroflight-1.0.2.hmod'
 os.makedirs(os.path.dirname(hmod_path), exist_ok=True)
 
 files = [

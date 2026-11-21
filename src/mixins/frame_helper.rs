@@ -78,6 +78,9 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
         // Ease the queued turn into the camera, like the roll does.
         let (dp, dy) = crate::gyroflight::take_smoothed_turn(elapsed);
         game.pitch += dp;
+        // Normalize pitch to [-180°, 180°] so it doesn't drift to extreme values
+        // that break the game engine's forward vector calculation.
+        game.pitch = (game.pitch + 180.0).rem_euclid(360.0) - 180.0;
         game.yaw += dy;
     }
 }
