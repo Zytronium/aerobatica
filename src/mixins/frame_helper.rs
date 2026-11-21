@@ -5,17 +5,17 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
     // The mod's settings (invert pitch, camera smoothness). Mixin code runs outside
     // the mod's call scope, where the typed reads (`setting_bool` etc.) find no mod
     // and return None, so read the raw files by mod id, a few times a second.
-    if crate::gyro::settings_refresh_due(elapsed) {
-        let invert = game.setting("gyro", "invert_y");
-        let smooth = game.setting("gyro", "camera_smoothness");
-        crate::gyro::apply_raw_settings(invert.as_deref(), smooth.as_deref());
+    if crate::gyroflight::settings_refresh_due(elapsed) {
+        let invert = game.setting("gyroflight", "invert_y");
+        let smooth = game.setting("gyroflight", "camera_smoothness");
+        crate::gyroflight::apply_raw_settings(invert.as_deref(), smooth.as_deref());
     }
 
     let gliding = match &game.player {
         Some(p) => p.fall_flying,
         None => false,
     };
-    let _ = crate::gyro::tick(gliding, elapsed, game.pitch);
+    let _ = crate::gyroflight::tick(gliding, elapsed, game.pitch);
 
     if gliding {
         let is_playing = match game.screen {
@@ -28,19 +28,19 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
             // follows the current roll and pitch rather than being pure world yaw.
             let key_a = game.keys.raw(&winit::keyboard::KeyCode::KeyA);
             let key_d = game.keys.raw(&winit::keyboard::KeyCode::KeyD);
-            let rudder = crate::gyro::calculate_rudder_yaw(key_a, key_d, elapsed);
+            let rudder = crate::gyroflight::calculate_rudder_yaw(key_a, key_d, elapsed);
             if rudder != 0.0 {
-                let (p, y) = crate::gyro::decompose_rudder(
+                let (p, y) = crate::gyroflight::decompose_rudder(
                     rudder,
-                    crate::gyro::get_roll(),
+                    crate::gyroflight::get_roll(),
                     game.pitch,
                 );
-                crate::gyro::add_pending_turn(p, y);
+                crate::gyroflight::add_pending_turn(p, y);
             }
         }
 
         // Ease the queued turn into the camera, like the roll does.
-        let (dp, dy) = crate::gyro::take_smoothed_turn(elapsed);
+        let (dp, dy) = crate::gyroflight::take_smoothed_turn(elapsed);
         game.pitch += dp;
         game.yaw += dy;
     }

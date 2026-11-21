@@ -9,8 +9,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
 /// The mod's row in Options > Mods. `version` here and in horizon-mod.toml are kept the same.
-pub const ID: &str = "gyro";
-pub const VERSION: &str = "1.7.0";
+pub const ID: &str = "gyroflight";
+pub const VERSION: &str = "1.0.0";
 pub const DESCRIPTION: &str =
     "Fly an elytra like an aircraft: mouse X rolls, mouse Y pitches, A/D keys steer (rudder). Smooth camera, invert Y option, and realistic flight physics.";
 

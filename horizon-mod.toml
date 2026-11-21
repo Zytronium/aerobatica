@@ -1,6 +1,6 @@
-id = "gyro"
-name = "Gyro"
-version = "1.7.0"
+id = "gyroflight"
+name = "Gyroflight"
+version = "1.0.0"
 description = "Fly an elytra like an aircraft: mouse X rolls, mouse Y pitches, A/D keys steer (rudder). Smooth camera, invert Y option, and realistic flight physics."
 authors = ["Horizon"]
 license = "MIT"
@@ -14,10 +14,10 @@ horizon = "0a875da91dbb0fdcb7ba8c42c11341aa229af51a"
 mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
 
 [[native.module]]
-id = "gyro"
+id = "gyroflight"
 file = "crates/horizon-client/src/client_lib.rs"
-name = "gyro"
-source = "src/runtime.rs"
+name = "gyroflight"
+source = "src/gyroflight.rs"
 visibility = "pub"
 [[native.mixin]]
 id = "frame-handler"

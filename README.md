@@ -1,7 +1,5 @@
 # Gyroflight
 
-![Gyro mod icon](https://weaigubwhdajcehreyau.supabase.co/storage/v1/object/public/icons/gyro.png)
-
 **Fly an elytra like an aircraft.** Put on elytra, jump, and the mouse becomes your flight stick: moving it
 left and right **rolls the aircraft** (banking), moving it up and down pitches — and because that pull goes
 through your bank, a wing-down tilt carves a turn. **A and D keys act as rudder** for yaw, so you can
@@ -24,7 +22,7 @@ Written for the feel of the Minecraft Java mod *Do a Barrel Roll*, on Horizon's 
 further and further, until you have rolled right around and come back to level — a full barrel roll,
 done with nothing but the mouse.
 
-Nothing to bind. **Options > Mods > Gyro > Config** has two settings: **Invert pitch**, and **Camera
+Nothing to bind. **Options > Mods > Gyroflight > Config** has two settings: **Invert pitch**, and **Camera
 smoothness** (0 is instant, 1 is very smooth; roll, pitch and yaw all ease toward their target, pitch a
 little more than the others).
 
@@ -88,7 +86,7 @@ was removed in the 2026-11-20 Nightly migration as the target no longer exists.
 | `game::fov::Game::spinning_matrix` | `RETURN` | `spin_helper.rs` — the camera bank, render view capture |
 | `game::pointer_capture::Game::apply_mouse_look` | `OVERWRITE` | `turn_helper.rs` — mouse roll/pitch + A/D rudder |
 
-Roll physics and the atomics behind it are in `runtime.rs`, injected as the `gyro` module of
+Roll physics and the atomics behind it are in `gyroflight.rs`, injected as the `gyroflight` module of
 `crates/horizon-client/src/client_lib.rs` (the `horizon-client-lib` crate the game is compiled from since
 Nightly 2026-11-10), and it is also this crate's library so the numbers can be tested on their own.
 
@@ -98,7 +96,7 @@ Nightly 2026-11-10), and it is also this crate's library so the numbers can be t
 horizon-mod.toml        the manifest: [native] pins, [[native.mixin]] hooks, [[native.module]]
 Cargo.toml              crate metadata
 src/lib.rs              crate root (mod_api Hooks entry point)
-src/runtime.rs          flight physics, camera roll, rudder — injected as a support module
+src/gyroflight.rs       flight physics, camera roll, rudder — injected as a support module
 src/mixins/             one helper per hook (frame, spin, turn)
 rust-toolchain.toml     Rust version for cargo test
 tools/                  build and test helpers

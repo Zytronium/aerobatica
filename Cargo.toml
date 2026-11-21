@@ -1,6 +1,6 @@
 [package]
-name = "mod-gyro"
-version = "1.7.0"
+name = "mod-gyroflight"
+version = "1.0.0"
 edition = "2024"
 license = "MIT"
 publish = false
