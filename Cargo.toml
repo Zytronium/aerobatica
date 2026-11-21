@@ -1,15 +1,15 @@
 [package]
-name = "horizon-gyro"
-version = "0.1.0"
+name = "mod-gyro"
+version = "1.7.0"
 edition = "2024"
-rust-version = "1.95"
 license = "MIT"
-description = "Gyro camera roll native mod for Horizon"
+publish = false
 
-[lib]
-# This exact source is also injected as a same-crate module by horizon-mixins.
-path = "mixins/gyro/runtime.rs"
+[dependencies]
+# The pinned SDK's API crate, fetched into .horizon/sdk/ by the launcher.
+# Required for the launcher build; for standalone `cargo test`, the launcher
+# moves this file aside or you can skip the dependency by not using mod-api features.
+horizon-mod-api = { path = ".horizon/sdk/api/crates/horizon-mod-api" }
 
-[workspace]
-members = ["tools/audit"]
-resolver = "2"
+[package.metadata.horizon]
+sdk = "0a875da91dbb0fdcb7ba8c42c11341aa229af51a"
