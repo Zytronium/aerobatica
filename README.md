@@ -1,6 +1,6 @@
-# Gyroflight
+# Aerobatica
 
-Gyroflight turns elytra gliding into aircraft style flight on Horizon. Move the mouse left and right to
+Aerobatica turns elytra gliding into aircraft style flight on Horizon. Move the mouse left and right to
 bank the wings, move it up and down to pitch, and press A or D for rudder controlled yaw. Pull up while
 banked and the aircraft carves a turn. Push the nose past vertical and you complete a loop. The camera
 eases smoothly into every movement and levels out when you touch down.
@@ -10,8 +10,8 @@ mod by [CGRLabs](https://github.com/CGRLabs).
 
 ## Credits
 
-Gyroflight is a fork of [Gyro](https://github.com/CGRLabs/gyro) by [CGRLabs](https://github.com/CGRLabs).
-The original mod introduced camera roll and smooth banking to Horizon elytra flight. Gyroflight extends
+Aerobatica is a fork of [Gyro](https://github.com/CGRLabs/gyro) by [CGRLabs](https://github.com/CGRLabs).
+The original mod introduced camera roll and smooth banking to Horizon elytra flight. Aerobatica extends
 that foundation with Do a Barrel Roll style controls, rudder input, invert pitch settings, and refined
 flight physics.
 
@@ -29,7 +29,7 @@ flight physics.
 further and further, until you have rolled right around and come back to level. A full barrel roll,
 done with nothing but the mouse.
 
-No key bindings to configure. Open **Options > Mods > Gyroflight > Config** for two settings: **Invert pitch**
+No key bindings to configure. Open **Options > Mods > Aerobatica > Config** for two settings: **Invert pitch**
 and **Camera smoothness** (0 is instant, 1 is very smooth). Roll, pitch and yaw all ease toward their
 target, with pitch smoothing slightly more than the others.
 
@@ -58,7 +58,7 @@ high, and hold Space to glide.
 
 ## Server compatibility
 
-Gyroflight only moves the camera and the player model on the client. The server never receives roll data,
+Aerobatica only moves the camera and the player model on the client. The server never receives roll data,
 so the mod is safe on strict servers. However, rudder input and carved turns do change your movement
 direction, so an anticheat that flags rapid yaw changes may trigger. This is the same behavior as any
 mouse sensitive flight mod. The mod is client side only with no server component. Dedicated server players
@@ -92,7 +92,7 @@ this was removed during the 2026-11-20 Nightly migration when that target no lon
 | `game::fov::Game::spinning_matrix` | `RETURN` | `spin_helper.rs` applies the camera bank and captures the render view |
 | `game::pointer_capture::Game::apply_mouse_look` | `OVERWRITE` | `turn_helper.rs` handles mouse roll, pitch and A/D rudder |
 
-The flight physics and atomic state live in `gyroflight.rs`. This file is injected as the `gyroflight`
+The flight physics and atomic state live in `aerobatica.rs`. This file is injected as the `aerobatica`
 module inside `crates/horizon-client/src/client_lib.rs` (the `horizon-client-lib` crate used since
 Nightly 2026-11-10). It also serves as this crate's library target so the math can be tested standalone.
 
@@ -102,7 +102,7 @@ Nightly 2026-11-10). It also serves as this crate's library target so the math c
 horizon-mod.toml        manifest with [native] pins, [[native.mixin]] hooks, and [[native.module]]
 Cargo.toml              crate metadata
 src/lib.rs              crate root with mod_api Hooks entry point
-src/gyroflight.rs       flight physics, camera roll, and rudder logic, injected as a support module
+src/aerobatica.rs       flight physics, camera roll, and rudder logic, injected as a support module
 src/mixins/             one helper per hook (frame, spin, turn)
 rust-toolchain.toml     Rust version for cargo test
 tools/                  build and test helpers

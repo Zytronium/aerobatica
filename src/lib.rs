@@ -1,4 +1,4 @@
-// Gyroflight — aircraft-like elytra flight controls for Horizon.
+// Aerobatica — aircraft-like elytra flight controls for Horizon.
 //
 // Mouse X rolls, mouse Y pitches, A/D keys steer (rudder).
 // Smooth camera, invert Y option, and realistic flight physics.
@@ -10,12 +10,12 @@
 // A minimal Hooks impl is required by the launcher to provide the entry point
 // and register settings (invert Y toggle, camera smoothness).
 
-pub mod gyroflight;
+pub mod aerobatica;
 
 #[mod_api::horizon_mod]
 impl mod_api::Hooks for Hooks {
     fn register(&self, r: &mut dyn mod_api::Registrar, _: &mod_api::RegistrationContext) {
-        // Register the invert Y axis setting — appears in Options > Mods > Gyroflight > Config
+        // Register the invert Y axis setting — appears in Options > Mods > Aerobatica > Config
         let _ = r.register_setting(mod_api::SettingSpec::toggle(
             "invert_y",
             "Invert pitch",

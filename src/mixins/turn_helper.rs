@@ -36,20 +36,20 @@ fn on_mouse_look(game: &mut crate::game::Game<'_>) {
             && game.camera_submersion(game.view.eye) == horizon_client::fog::FogType::Water;
 
         if gliding && !underwater {
-            let cur_roll = crate::gyroflight::get_roll();
+            let cur_roll = crate::aerobatica::get_roll();
 
             // Invert pitch is read in the frame hook (see frame_helper.rs) into
             // the runtime, which calculate_flight_turn applies before the roll decomposition.
             // Mouse Y decomposes through roll: pull-up while banked carves
             let (pitch_delta, roll_delta, carve_yaw) =
-                crate::gyroflight::calculate_flight_turn(xo, yo, cur_roll, game.pitch);
+                crate::aerobatica::calculate_flight_turn(xo, yo, cur_roll, game.pitch);
 
             // Set target roll from mouse X input; tick() smooths toward it
-            crate::gyroflight::add_target_roll(roll_delta);
+            crate::aerobatica::add_target_roll(roll_delta);
 
             // Queue the pitch and carve yaw; the frame hook eases them into the
             // camera so they are as smooth as the roll. A/D rudder is handled there too.
-            crate::gyroflight::add_pending_turn(pitch_delta, carve_yaw);
+            crate::aerobatica::add_pending_turn(pitch_delta, carve_yaw);
         } else {
             // Normal walking / sitting / riding controls
             game.turn_player(xo, yo);

@@ -5,10 +5,10 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
     // The mod's settings (invert pitch, camera smoothness). Mixin code runs outside
     // the mod's call scope, where the typed reads (`setting_bool` etc.) find no mod
     // and return None, so read the raw files by mod id, a few times a second.
-    if crate::gyroflight::settings_refresh_due(elapsed) {
-        let invert = game.setting("gyroflight", "invert_y");
-        let smooth = game.setting("gyroflight", "camera_smoothness");
-        crate::gyroflight::apply_raw_settings(invert.as_deref(), smooth.as_deref());
+    if crate::aerobatica::settings_refresh_due(elapsed) {
+        let invert = game.setting("aerobatica", "invert_y");
+        let smooth = game.setting("aerobatica", "camera_smoothness");
+        crate::aerobatica::apply_raw_settings(invert.as_deref(), smooth.as_deref());
     }
 
     let gliding = match &game.player {
@@ -23,13 +23,13 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
         // other way round and upside down. The glide is over, so make the player really
         // face where the camera looks (swimming and walking read yaw and a pitch within 90).
         let (yaw, pitch, roll, changed) =
-            crate::gyroflight::upright_attitude(game.yaw, game.pitch, crate::gyroflight::get_roll());
+            crate::aerobatica::upright_attitude(game.yaw, game.pitch, crate::aerobatica::get_roll());
         if changed {
             let turned = yaw - game.yaw;
             game.yaw = yaw;
             game.pitch = pitch;
-            crate::gyroflight::set_roll(roll);
-            crate::gyroflight::set_target_roll(0.0);
+            crate::aerobatica::set_roll(roll);
+            crate::aerobatica::set_target_roll(0.0);
             // The avatar's own copy follows, so it does not spin to catch up.
             if let Some(m) = game.player_model.as_mut() {
                 m.head_pitch = pitch;
@@ -41,7 +41,7 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
             }
         }
     }
-    let _ = crate::gyroflight::tick(gliding && !underwater, elapsed, game.pitch);
+    let _ = crate::aerobatica::tick(gliding && !underwater, elapsed, game.pitch);
 
     if gliding && !underwater {
         let is_playing = match game.screen {
@@ -54,14 +54,14 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
             // follows the current roll and pitch rather than being pure world yaw.
             let key_a = game.keys.raw(&winit::keyboard::KeyCode::KeyA);
             let key_d = game.keys.raw(&winit::keyboard::KeyCode::KeyD);
-            let rudder = crate::gyroflight::calculate_rudder_yaw(key_a, key_d, elapsed);
+            let rudder = crate::aerobatica::calculate_rudder_yaw(key_a, key_d, elapsed);
             if rudder != 0.0 {
-                let (p, y) = crate::gyroflight::decompose_rudder(
+                let (p, y) = crate::aerobatica::decompose_rudder(
                     rudder,
-                    crate::gyroflight::get_roll(),
+                    crate::aerobatica::get_roll(),
                     game.pitch,
                 );
-                crate::gyroflight::add_pending_turn(p, y);
+                crate::aerobatica::add_pending_turn(p, y);
             }
         }
 
@@ -69,14 +69,14 @@ fn on_frame(game: &mut crate::game::Game<'_>, elapsed: std::time::Duration) {
         // turns the heading. This is pure world yaw (about the vertical axis),
         // not decomposed through the aircraft's roll axis — so it never pitches
         // the nose toward or away from the ground.
-        let roll = crate::gyroflight::get_roll();
-        let roll_yaw = crate::gyroflight::calculate_roll_yaw(roll, game.pitch, elapsed);
+        let roll = crate::aerobatica::get_roll();
+        let roll_yaw = crate::aerobatica::calculate_roll_yaw(roll, game.pitch, elapsed);
         if roll_yaw.abs() > 1e-6 {
-            crate::gyroflight::add_pending_turn(0.0, roll_yaw);
+            crate::aerobatica::add_pending_turn(0.0, roll_yaw);
         }
 
         // Ease the queued turn into the camera, like the roll does.
-        let (dp, dy) = crate::gyroflight::take_smoothed_turn(elapsed);
+        let (dp, dy) = crate::aerobatica::take_smoothed_turn(elapsed);
         game.pitch += dp;
         // Normalize pitch to [-180°, 180°] so it doesn't drift to extreme values
         // that break the game engine's forward vector calculation.

@@ -1,6 +1,6 @@
-id = "gyroflight"
-name = "Gyroflight"
-version = "1.0.2"
+id = "aerobatica"
+name = "Aerobatica"
+version = "1.0.3"
 description = "Fly an elytra like an aircraft: mouse X rolls, mouse Y pitches, A/D keys steer (rudder). Smooth camera, invert Y option, and realistic flight physics."
 authors = ["Horizon"]
 license = "MIT"
@@ -14,10 +14,10 @@ horizon = "f037744a79f9982c47876f49c5a3067279f88706"
 mixins = "e59da9094f0c2fdda6c627fe9eff22dec6a906f0"
 
 [[native.module]]
-id = "gyroflight"
+id = "aerobatica"
 file = "crates/horizon-client/src/client_lib.rs"
-name = "gyroflight"
-source = "src/gyroflight.rs"
+name = "aerobatica"
+source = "src/aerobatica.rs"
 visibility = "pub"
 
 [[native.mixin]]

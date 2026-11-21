@@ -23,8 +23,8 @@ fn on_after(
     if !m.extra.fall_flying || m.extra.auto_spin_attack {
         return;
     }
-    let roll = crate::gyroflight::get_roll();
-    let start = crate::gyroflight::get_avatar_start();
+    let roll = crate::aerobatica::get_roll();
+    let start = crate::aerobatica::get_avatar_start();
     if roll.abs() < 0.001 || start >= out.len() {
         return;
     }
@@ -32,8 +32,8 @@ fn on_after(
     let ticks = m.extra.fall_fly_ticks as f32 + alpha as f32;
     let blend = (ticks * ticks / 100.0).min(1.0);
     let pitch = m.previous_head_pitch + (m.head_pitch - m.previous_head_pitch) * alpha as f32;
-    let (_, view_pitch) = crate::gyroflight::get_view();
-    let degrees = crate::gyroflight::avatar_roll(roll, view_pitch, pitch, blend);
+    let (_, view_pitch) = crate::aerobatica::get_view();
+    let degrees = crate::aerobatica::avatar_roll(roll, view_pitch, pitch, blend);
 
     let base = horizon_client::mobs::render::base_transform(m, alpha as f32, camera);
     let pivot = base.transform_point3(glam::Vec3::ZERO);

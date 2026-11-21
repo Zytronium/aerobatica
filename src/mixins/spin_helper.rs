@@ -6,9 +6,9 @@
 // Mob kept in step with the player; `camera_mob()` only names a mob a server
 // attached the view to (spectator/remote cameras), never our own avatar.
 fn on_return(game: &crate::game::Game<'_>, value: glam::Mat4) -> glam::Mat4 {
-    crate::gyroflight::set_view(game.view.y_rot, game.view.x_rot);
-    crate::gyroflight::set_lock_mob(game.player_model.as_ref().map_or(u32::MAX, |m| m.id));
-    let roll = crate::gyroflight::get_roll();
+    crate::aerobatica::set_view(game.view.y_rot, game.view.x_rot);
+    crate::aerobatica::set_lock_mob(game.player_model.as_ref().map_or(u32::MAX, |m| m.id));
+    let roll = crate::aerobatica::get_roll();
     if roll.abs() > 0.001 {
         value * glam::Mat4::from_rotation_z(roll.to_radians())
     } else {
