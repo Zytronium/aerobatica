@@ -141,5 +141,5 @@ beware.
 
 ## License
 
-MIT license, matching Horizon's own license for native mods. This project does not contain any of
-Mojang's code, assets or data.
+MIT license, matching Horizon's own license for native mods. This project 
+does not contain any of Mojang's code, assets or data.
